@@ -64,43 +64,45 @@ app.all('/teste', async (req, res) => {
     // =========================
     // 🏢 EMPRESA
     // =========================
-    console.log('🏢 Aguardando tela de empresas...');
+    console.log('🏢 Procurando empresa...');
 
-    await page.waitForFunction(() => {
-      return document.body.innerText.includes('Acessar');
-    }, { timeout: 30000 });
+await page.waitForTimeout(5000);
 
-    const nomeEmpresa = "BMB TECNOLOGIA SOLUÇÕES E SERVIÇOS LTDA";
+// garante render
+await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
-    console.log('🎯 Selecionando empresa...');
+await page.waitForTimeout(2000);
 
-    const clicou = await page.evaluate((nomeEmpresa) => {
-      const elements = Array.from(document.querySelectorAll('div, section, article'));
+const nomeEmpresa = "BMB TECNOLOGIA SOLUÇÕES E SERVIÇOS LTDA";
 
-      const card = elements.find(el =>
-        el.innerText && el.innerText.includes(nomeEmpresa)
-      );
+const clicou = await page.evaluate((nomeEmpresa) => {
+  const elements = Array.from(document.querySelectorAll('div, section, article'));
 
-      if (!card) return false;
+  const card = elements.find(el =>
+    el.innerText && el.innerText.includes(nomeEmpresa)
+  );
 
-      card.scrollIntoView({ block: 'center' });
+  if (!card) return false;
 
-      const btn = card.querySelector('button');
+  card.scrollIntoView({ block: 'center' });
 
-      if (btn) {
-        btn.click();
-        return true;
-      }
+  // tenta botão
+  let btn = card.querySelector('button');
 
-      // fallback
-      card.click();
-      return true;
+  if (btn) {
+    btn.click();
+    return true;
+  }
 
-    }, nomeEmpresa);
+  // fallback forte: clica no próprio card
+  card.click();
+  return true;
 
-    console.log('👉 Empresa clicada:', clicou);
+}, nomeEmpresa);
 
-    await page.waitForTimeout(5000);
+console.log('👉 Clique empresa:', clicou);
+
+await page.waitForTimeout(7000);
 
     // =========================
     // 🔍 DEBUG
