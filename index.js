@@ -37,9 +37,9 @@ app.post('/preencher', async (req, res) => {
     const page = await browser.newPage();
 
     // LOGIN
-    await page.goto('https://diariodeobra.net/login', {
-      waitUntil: 'networkidle2'
-    });
+    await page.goto('https://web.diariodeobra.app/#/login', {
+  waitUntil: 'networkidle2'
+});
 
     await page.type('#email', process.env.EMAIL);
     await page.type('#password', process.env.SENHA);
