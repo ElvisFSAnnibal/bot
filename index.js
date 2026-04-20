@@ -9,7 +9,8 @@ app.get('/', (req, res) => {
   res.send('OK 🚀');
 });
 
-app.post('/teste', async (req, res) => {
+// 🔥 rota de debug
+app.get('/teste', async (req, res) => {
   let browser;
   let page;
 
@@ -27,34 +28,58 @@ app.post('/teste', async (req, res) => {
     // =========================
     await page.goto('https://web.diariodeobra.app/#/login');
 
-    await page.waitForSelector('input[name="email"]', { timeout: 15000 });
+    await page.waitForSelector('input[name="email"]', { timeout: 20000 });
 
     await page.type('input[name="email"]', process.env.EMAIL);
     await page.type('input[name="password"]', process.env.SENHA);
 
     await page.click('button[type="submit"]');
 
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 6000));
+
+    console.log('Login OK');
 
     // =========================
-    // 🏢 EMPRESA
+    // 🏢 SELECIONAR EMPRESA (ROBUSTO)
     // =========================
+    await page.waitForFunction(() => {
+      return document.body.innerText.includes('Acessar');
+    }, { timeout: 20000 });
+
     await page.evaluate(() => {
       const nomeEmpresa = "BMB TECNOLOGIA SOLUÇÕES E SERVIÇOS LTDA";
 
-      const elementos = Array.from(document.querySelectorAll('*'));
+      const blocos = Array.from(document.querySelectorAll('*'));
 
-      const empresa = elementos.find(el =>
+      const empresa = blocos.find(el =>
         el.innerText && el.innerText.includes(nomeEmpresa)
       );
 
       if (empresa) {
-        const botao = empresa.querySelector('button');
-        if (botao) botao.click();
+        let el = empresa;
+
+        for (let i = 0; i < 5; i++) {
+          const btn = el.querySelector('button');
+          if (btn) {
+            btn.click();
+            return;
+          }
+          el = el.parentElement;
+          if (!el) break;
+        }
       }
     });
 
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 7000));
+
+    console.log('Empresa selecionada');
+
+    // =========================
+    // 🔍 DEBUG DA TELA
+    // =========================
+    const textoTela = await page.evaluate(() => document.body.innerText);
+
+    console.log('TELA ATUAL:', textoTela.slice(0, 500));
 
     // =========================
     // 📸 SCREENSHOT
@@ -64,18 +89,18 @@ app.post('/teste', async (req, res) => {
       fullPage: true
     });
 
-    const textoTela = await page.evaluate(() => document.body.innerText);
-
     await browser.close();
 
     res.send({
       status: 'ok',
-      mensagem: 'Debug realizado',
+      mensagem: 'Debug após selecionar empresa',
       tela: textoTela.substring(0, 500),
       screenshot
     });
 
   } catch (erro) {
+    console.error('ERRO:', erro);
+
     let screenshot = null;
 
     if (page) {
@@ -95,6 +120,7 @@ app.post('/teste', async (req, res) => {
   }
 });
 
+// start
 app.listen(process.env.PORT || 3000, () => {
   console.log('Servidor rodando 🚀');
 });
