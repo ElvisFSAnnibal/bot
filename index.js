@@ -65,7 +65,7 @@ app.all('/teste', async (req, res) => {
 
     await page.click('button[type="submit"]');
 
-    await page.waitForTimeout(5000);
+    await new Promise(r => setTimeout(r, 5000));
 
     console.log('✅ Login realizado');
 
@@ -77,7 +77,7 @@ app.all('/teste', async (req, res) => {
     await page.type(inputSelector, obra, { delay: 50 });
     await page.keyboard.press('Enter');
 
-    await page.waitForTimeout(5000);
+    await new Promise(r => setTimeout(r, 5000));
 
     const tela = await page.evaluate(() => document.body.innerText);
 
