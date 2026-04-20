@@ -6,12 +6,12 @@ const fs = require('fs');
 const app = express();
 app.use(express.json());
 
-// 🔽 rota de teste (abra no navegador)
+// 🔽 teste no navegador
 app.get('/', (req, res) => {
   res.send('OK 🚀');
 });
 
-// 🔽 função para baixar imagem (opcional)
+// 🔽 baixar imagem (opcional)
 async function baixarImagem(url, caminho) {
   const response = await axios({
     url,
@@ -54,20 +54,43 @@ app.post('/preencher', async (req, res) => {
 
     await page.click('button[type="submit"]');
 
-    // espera sistema carregar (SPA)
-    await page.waitForTimeout(5000);
+    await new Promise(r => setTimeout(r, 5000));
 
     console.log('Login realizado');
 
     // =========================
+    // 🏢 SELECIONAR EMPRESA
+    // =========================
+    await new Promise(r => setTimeout(r, 4000));
+
+    await page.evaluate(() => {
+      const nomeEmpresa = "BMB TECNOLOGIA SOLUÇÕES E SERVIÇOS LTDA";
+
+      const elementos = Array.from(document.querySelectorAll('*'));
+
+      const empresa = elementos.find(el =>
+        el.innerText && el.innerText.includes(nomeEmpresa)
+      );
+
+      if (empresa) {
+        const botao = empresa.querySelector('button');
+        if (botao) botao.click();
+      }
+    });
+
+    await new Promise(r => setTimeout(r, 5000));
+
+    console.log('Empresa selecionada');
+
+    // =========================
     // 📍 IR PARA RELATÓRIO
     // =========================
-    // ⚠️ COLOQUE A URL REAL AQUI
+    // ⚠️ COLOQUE SUA URL REAL AQUI
     await page.goto('COLE_AQUI_URL_DO_RELATORIO', {
       waitUntil: 'networkidle2'
     });
 
-    await page.waitForTimeout(5000);
+    await new Promise(r => setTimeout(r, 5000));
 
     // =========================
     // 🔍 BUSCAR ATIVIDADE
@@ -84,13 +107,12 @@ app.post('/preencher', async (req, res) => {
 
         if (botao) {
           await botao.click();
-          await page.waitForTimeout(3000);
+          await new Promise(r => setTimeout(r, 3000));
 
           // =========================
           // ✏️ PREENCHER CAMPOS
           // =========================
           try {
-            // quantidade
             await page.waitForSelector('input[name="quantidade"]', { timeout: 5000 });
             await page.click('input[name="quantidade"]', { clickCount: 3 });
             await page.type('input[name="quantidade"]', String(qtd));
@@ -98,7 +120,6 @@ app.post('/preencher', async (req, res) => {
             console.log('Campo quantidade não encontrado');
           }
 
-          // observação
           if (obs) {
             try {
               await page.click('textarea[name="observacao"]');
@@ -109,7 +130,7 @@ app.post('/preencher', async (req, res) => {
           }
 
           // =========================
-          // 📸 UPLOAD IMAGEM (opcional)
+          // 📸 IMAGEM
           // =========================
           if (imagem) {
             try {
@@ -119,10 +140,10 @@ app.post('/preencher', async (req, res) => {
               const inputFile = await page.$('input[type="file"]');
               if (inputFile) {
                 await inputFile.uploadFile(caminho);
-                await page.waitForTimeout(2000);
+                await new Promise(r => setTimeout(r, 2000));
               }
             } catch (e) {
-              console.log('Erro ao enviar imagem:', e.message);
+              console.log('Erro imagem:', e.message);
             }
           }
 
@@ -135,14 +156,13 @@ app.post('/preencher', async (req, res) => {
             if (salvar) salvar.click();
           });
 
-          await page.waitForTimeout(3000);
+          await new Promise(r => setTimeout(r, 3000));
 
           break;
         }
       }
     }
 
-    // screenshot debug
     await page.screenshot({ path: '/tmp/debug.png' });
 
     await browser.close();
@@ -155,7 +175,7 @@ app.post('/preencher', async (req, res) => {
   }
 });
 
-// 🚀 iniciar servidor
+// 🚀 start
 app.listen(process.env.PORT || 3000, () => {
   console.log('Servidor rodando 🚀');
 });
