@@ -12,15 +12,29 @@ app.get('/', (req, res) => {
 });
 
 // =========================
-// 🔥 TESTE
+// 🔥 TESTE PRINCIPAL (DINÂMICO)
 // =========================
 app.all('/teste', async (req, res) => {
   let browser;
   let page;
 
   try {
-    console.log('🚀 Iniciando Puppeteer...');
+    // =========================
+    // 📦 RECEBE DADOS
+    // =========================
+    const obra = req.body.obra;
 
+    if (!obra) {
+      return res.status(400).json({
+        erro: "Envie a obra no JSON. Ex: { \"obra\": \"ET 12345\" }"
+      });
+    }
+
+    console.log('📦 Obra recebida:', obra);
+
+    // =========================
+    // 🚀 INICIA PUPPETEER
+    // =========================
     browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -34,11 +48,10 @@ app.all('/teste', async (req, res) => {
     page.setDefaultTimeout(30000);
 
     // =========================
-    // 🔐 LOGIN (CORRIGIDO)
+    // 🔐 LOGIN
     // =========================
-    console.log('🔐 Indo para login...');
+    console.log('🔐 Acessando login...');
 
-    // ❌ removido networkidle2 (ERA O PROBLEMA)
     await page.goto('https://web.diariodeobra.app/#/login', {
       waitUntil: 'domcontentloaded'
     });
@@ -50,11 +63,9 @@ app.all('/teste', async (req, res) => {
 
     await page.waitForSelector('button[type="submit"]', { timeout: 30000 });
 
-    console.log('🔑 Fazendo login...');
-
     await page.click('button[type="submit"]');
 
-    // 🔥 espera real de mudança de tela (não tempo fixo)
+    // espera sair do login (forma confiável)
     await page.waitForFunction(() => {
       return !document.querySelector('input[name="email"]');
     }, { timeout: 30000 });
@@ -62,52 +73,31 @@ app.all('/teste', async (req, res) => {
     console.log('✅ Login realizado');
 
     // =========================
-    // 🏢 EMPRESA
+    // 🔍 BUSCA DA OBRA
     // =========================
-    console.log('🏢 Procurando empresa...');
+    console.log('🔍 Buscando obra:', obra);
 
-await page.waitForTimeout(5000);
+    await page.waitForTimeout(3000);
 
-// garante render
-await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const inputSelector = 'input[type="text"], input[placeholder*="Buscar"], input';
 
-await page.waitForTimeout(2000);
+    await page.waitForSelector(inputSelector, { timeout: 30000 });
 
-const nomeEmpresa = "BMB TECNOLOGIA SOLUÇÕES E SERVIÇOS LTDA";
+    await page.click(inputSelector, { clickCount: 3 });
+    await page.keyboard.press('Backspace');
 
-const clicou = await page.evaluate((nomeEmpresa) => {
-  const elements = Array.from(document.querySelectorAll('div, section, article'));
+    await page.type(inputSelector, obra, { delay: 80 });
 
-  const card = elements.find(el =>
-    el.innerText && el.innerText.includes(nomeEmpresa)
-  );
+    await page.keyboard.press('Enter');
 
-  if (!card) return false;
+    console.log('⏎ Busca enviada');
 
-  card.scrollIntoView({ block: 'center' });
-
-  // tenta botão
-  let btn = card.querySelector('button');
-
-  if (btn) {
-    btn.click();
-    return true;
-  }
-
-  // fallback forte: clica no próprio card
-  card.click();
-  return true;
-
-}, nomeEmpresa);
-
-console.log('👉 Clique empresa:', clicou);
-
-await page.waitForTimeout(7000);
+    await page.waitForTimeout(5000);
 
     // =========================
-    // 🔍 DEBUG
+    // 🔍 DEBUG TELA
     // =========================
-    const textoTela = await page.evaluate(() => document.body.innerText);
+    const tela = await page.evaluate(() => document.body.innerText);
 
     const screenshot = await page.screenshot({
       encoding: 'base64',
@@ -116,11 +106,13 @@ await page.waitForTimeout(7000);
 
     await browser.close();
 
+    // =========================
+    // 📤 RESPOSTA
+    // =========================
     res.json({
-      status: 'ok',
-      login: true,
-      empresaClicada: clicou,
-      preview: textoTela.substring(0, 500),
+      status: "ok",
+      obra,
+      preview: tela.substring(0, 500),
       screenshot
     });
 
@@ -145,7 +137,7 @@ await page.waitForTimeout(7000);
 });
 
 // =========================
-// 🚀 START
+// 🚀 START SERVER
 // =========================
 const PORT = process.env.PORT || 3000;
 
