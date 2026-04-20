@@ -15,6 +15,7 @@ app.get('/', (req, res) => {
 // 🔥 TESTE PRINCIPAL (DINÂMICO)
 // =========================
 app.all('/teste', async (req, res) => {
+  console.log('📩 BODY RECEBIDO:', req.body);
   let browser;
   let page;
 
