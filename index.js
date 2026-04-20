@@ -4,42 +4,23 @@ const puppeteer = require('puppeteer');
 const app = express();
 app.use(express.json());
 
-// 🔽 rota de teste
+// rota teste
 app.get('/', (req, res) => {
   res.send('OK 🚀');
 });
 
-app.post('/preencher', async (req, res) => {
+app.post('/teste', async (req, res) => {
   let browser;
+  let page;
 
   try {
-    const { obra } = req.body;
-
-    console.log('Recebido:', req.body);
-
-    // =========================
-    // 🧠 TRATAR OBRA (ET XXXXX)
-    // =========================
-    let nomeObra = obra || "";
-
-    if (!nomeObra.toUpperCase().startsWith("ET")) {
-      nomeObra = "ET " + nomeObra;
-    }
-
-    nomeObra = nomeObra.trim();
-
-    console.log("Buscando obra:", nomeObra);
-
-    // =========================
-    // 🚀 INICIAR BROWSER
-    // =========================
     browser = await puppeteer.launch({
       headless: true,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
-    const page = await browser.newPage();
+    page = await browser.newPage();
 
     // =========================
     // 🔐 LOGIN
@@ -55,13 +36,9 @@ app.post('/preencher', async (req, res) => {
 
     await new Promise(r => setTimeout(r, 5000));
 
-    console.log('Login OK');
-
     // =========================
-    // 🏢 ESCOLHER EMPRESA
+    // 🏢 EMPRESA
     // =========================
-    await new Promise(r => setTimeout(r, 4000));
-
     await page.evaluate(() => {
       const nomeEmpresa = "BMB TECNOLOGIA SOLUÇÕES E SERVIÇOS LTDA";
 
@@ -79,82 +56,37 @@ app.post('/preencher', async (req, res) => {
 
     await new Promise(r => setTimeout(r, 5000));
 
-    console.log('Empresa selecionada');
-
     // =========================
-    // 🔍 BUSCAR OBRA
-    // =========================
-    await page.waitForSelector('input[placeholder="Pesquisa"]', { timeout: 15000 });
-
-    await page.click('input[placeholder="Pesquisa"]', { clickCount: 3 });
-    await page.type('input[placeholder="Pesquisa"]', nomeObra);
-
-    await new Promise(r => setTimeout(r, 3000));
-
-    // clicar na obra
-    await page.evaluate((nomeObra) => {
-      const elementos = Array.from(document.querySelectorAll('*'));
-
-      const obra = elementos.find(el =>
-        el.innerText && el.innerText.toUpperCase().includes(nomeObra.toUpperCase())
-      );
-
-      if (obra) obra.click();
-    }, nomeObra);
-
-    await new Promise(r => setTimeout(r, 5000));
-
-    console.log('Tentou entrar na obra');
-
-    // =========================
-    // ✅ VALIDAR SE ENTROU
-    // =========================
-    const entrouNaObra = await page.evaluate((nomeObra) => {
-      return document.body.innerText.toUpperCase().includes(nomeObra.toUpperCase());
-    }, nomeObra);
-
-    if (!entrouNaObra) {
-      throw new Error('Não entrou na obra');
-    }
-
-    console.log('Entrou na obra com sucesso');
-
-    // =========================
-    // 📸 SCREENSHOT (DEBUG)
+    // 📸 SCREENSHOT
     // =========================
     const screenshot = await page.screenshot({
       encoding: 'base64',
       fullPage: true
     });
 
+    const textoTela = await page.evaluate(() => document.body.innerText);
+
     await browser.close();
 
-    // =========================
-    // 📤 RESPOSTA
-    // =========================
     res.send({
       status: 'ok',
-      obra: nomeObra,
-      mensagem: 'Entrou na obra com sucesso',
+      mensagem: 'Debug realizado',
+      tela: textoTela.substring(0, 500),
       screenshot
     });
 
   } catch (erro) {
-    console.error('ERRO:', erro);
-
     let screenshot = null;
 
-    try {
-      if (browser) {
-        const pages = await browser.pages();
-        if (pages.length > 0) {
-          screenshot = await pages[0].screenshot({
-            encoding: 'base64'
-          });
-        }
-        await browser.close();
-      }
-    } catch (e) {}
+    if (page) {
+      try {
+        screenshot = await page.screenshot({
+          encoding: 'base64'
+        });
+      } catch (e) {}
+    }
+
+    if (browser) await browser.close();
 
     res.status(500).send({
       erro: erro.message,
@@ -163,7 +95,6 @@ app.post('/preencher', async (req, res) => {
   }
 });
 
-// 🚀 start
 app.listen(process.env.PORT || 3000, () => {
   console.log('Servidor rodando 🚀');
 });
