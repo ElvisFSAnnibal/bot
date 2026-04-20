@@ -4,20 +4,21 @@ const puppeteer = require('puppeteer');
 const app = express();
 app.use(express.json());
 
-// 🔽 teste
+// 🔽 rota de teste
 app.get('/', (req, res) => {
   res.send('OK 🚀');
 });
 
-// 🔥 endpoint principal
 app.post('/preencher', async (req, res) => {
+  let browser;
+
   try {
     const { obra } = req.body;
 
     console.log('Recebido:', req.body);
 
     // =========================
-    // 🧠 TRATAR NOME DA OBRA
+    // 🧠 TRATAR OBRA (ET XXXXX)
     // =========================
     let nomeObra = obra || "";
 
@@ -29,7 +30,10 @@ app.post('/preencher', async (req, res) => {
 
     console.log("Buscando obra:", nomeObra);
 
-    const browser = await puppeteer.launch({
+    // =========================
+    // 🚀 INICIAR BROWSER
+    // =========================
+    browser = await puppeteer.launch({
       headless: true,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
       args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -51,10 +55,10 @@ app.post('/preencher', async (req, res) => {
 
     await new Promise(r => setTimeout(r, 5000));
 
-    console.log('Login realizado');
+    console.log('Login OK');
 
     // =========================
-    // 🏢 SELECIONAR EMPRESA
+    // 🏢 ESCOLHER EMPRESA
     // =========================
     await new Promise(r => setTimeout(r, 4000));
 
@@ -83,7 +87,6 @@ app.post('/preencher', async (req, res) => {
     await page.waitForSelector('input[placeholder="Pesquisa"]', { timeout: 15000 });
 
     await page.click('input[placeholder="Pesquisa"]', { clickCount: 3 });
-
     await page.type('input[placeholder="Pesquisa"]', nomeObra);
 
     await new Promise(r => setTimeout(r, 3000));
@@ -101,20 +104,62 @@ app.post('/preencher', async (req, res) => {
 
     await new Promise(r => setTimeout(r, 5000));
 
-    console.log('Obra selecionada');
+    console.log('Tentou entrar na obra');
 
     // =========================
-    // 🧪 DEBUG
+    // ✅ VALIDAR SE ENTROU
     // =========================
-    await page.screenshot({ path: '/tmp/debug.png' });
+    const entrouNaObra = await page.evaluate((nomeObra) => {
+      return document.body.innerText.toUpperCase().includes(nomeObra.toUpperCase());
+    }, nomeObra);
+
+    if (!entrouNaObra) {
+      throw new Error('Não entrou na obra');
+    }
+
+    console.log('Entrou na obra com sucesso');
+
+    // =========================
+    // 📸 SCREENSHOT (DEBUG)
+    // =========================
+    const screenshot = await page.screenshot({
+      encoding: 'base64',
+      fullPage: true
+    });
 
     await browser.close();
 
-    res.send({ status: 'ok', obra: nomeObra });
+    // =========================
+    // 📤 RESPOSTA
+    // =========================
+    res.send({
+      status: 'ok',
+      obra: nomeObra,
+      mensagem: 'Entrou na obra com sucesso',
+      screenshot
+    });
 
   } catch (erro) {
     console.error('ERRO:', erro);
-    res.status(500).send({ erro: erro.message });
+
+    let screenshot = null;
+
+    try {
+      if (browser) {
+        const pages = await browser.pages();
+        if (pages.length > 0) {
+          screenshot = await pages[0].screenshot({
+            encoding: 'base64'
+          });
+        }
+        await browser.close();
+      }
+    } catch (e) {}
+
+    res.status(500).send({
+      erro: erro.message,
+      screenshot
+    });
   }
 });
 
