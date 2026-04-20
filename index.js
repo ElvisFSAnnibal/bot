@@ -12,7 +12,7 @@ app.get('/', (req, res) => {
 });
 
 // =========================
-// 🔥 TESTE PRINCIPAL
+// 🔥 TESTE
 // =========================
 app.all('/teste', async (req, res) => {
   let browser;
@@ -22,55 +22,57 @@ app.all('/teste', async (req, res) => {
     console.log('🚀 Iniciando Puppeteer...');
 
     browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--single-process'
+        '--disable-dev-shm-usage'
       ]
     });
 
     page = await browser.newPage();
-
     page.setDefaultTimeout(30000);
 
     // =========================
-    // 🔐 LOGIN
+    // 🔐 LOGIN (CORRIGIDO)
     // =========================
-    console.log('🔐 Acessando login...');
+    console.log('🔐 Indo para login...');
 
+    // ❌ removido networkidle2 (ERA O PROBLEMA)
     await page.goto('https://web.diariodeobra.app/#/login', {
-      waitUntil: 'networkidle2'
+      waitUntil: 'domcontentloaded'
     });
 
-    await page.waitForSelector('input[name="email"]');
+    await page.waitForSelector('input[name="email"]', { timeout: 30000 });
 
-    await page.type('input[name="email"]', process.env.EMAIL || '');
-    await page.type('input[name="password"]', process.env.SENHA || '');
+    await page.type('input[name="email"]', process.env.EMAIL || '', { delay: 30 });
+    await page.type('input[name="password"]', process.env.SENHA || '', { delay: 30 });
+
+    await page.waitForSelector('button[type="submit"]', { timeout: 30000 });
+
+    console.log('🔑 Fazendo login...');
 
     await page.click('button[type="submit"]');
 
-    // espera transição de tela
-    await page.waitForTimeout(5000);
+    // 🔥 espera real de mudança de tela (não tempo fixo)
+    await page.waitForFunction(() => {
+      return !document.querySelector('input[name="email"]');
+    }, { timeout: 30000 });
 
     console.log('✅ Login realizado');
 
     // =========================
-    // 🏢 TELA DE EMPRESA
+    // 🏢 EMPRESA
     // =========================
-    console.log('🏢 Aguardando lista de empresas...');
+    console.log('🏢 Aguardando tela de empresas...');
 
     await page.waitForFunction(() => {
       return document.body.innerText.includes('Acessar');
     }, { timeout: 30000 });
 
-    // =========================
-    // 🧠 SELEÇÃO DE EMPRESA
-    // =========================
     const nomeEmpresa = "BMB TECNOLOGIA SOLUÇÕES E SERVIÇOS LTDA";
 
-    console.log('🎯 Tentando selecionar empresa...');
+    console.log('🎯 Selecionando empresa...');
 
     const clicou = await page.evaluate((nomeEmpresa) => {
       const elements = Array.from(document.querySelectorAll('div, section, article'));
@@ -90,23 +92,21 @@ app.all('/teste', async (req, res) => {
         return true;
       }
 
-      return false;
+      // fallback
+      card.click();
+      return true;
+
     }, nomeEmpresa);
 
-    console.log('👉 Clique empresa:', clicou);
+    console.log('👉 Empresa clicada:', clicou);
 
     await page.waitForTimeout(5000);
 
     // =========================
-    // 🔍 DEBUG DA TELA FINAL
+    // 🔍 DEBUG
     // =========================
     const textoTela = await page.evaluate(() => document.body.innerText);
 
-    console.log('📄 TELA ATUAL (preview):', textoTela.slice(0, 500));
-
-    // =========================
-    // 📸 SCREENSHOT
-    // =========================
     const screenshot = await page.screenshot({
       encoding: 'base64',
       fullPage: true
@@ -118,7 +118,7 @@ app.all('/teste', async (req, res) => {
       status: 'ok',
       login: true,
       empresaClicada: clicou,
-      telaPreview: textoTela.substring(0, 500),
+      preview: textoTela.substring(0, 500),
       screenshot
     });
 
@@ -143,7 +143,7 @@ app.all('/teste', async (req, res) => {
 });
 
 // =========================
-// 🚀 START SERVER
+// 🚀 START
 // =========================
 const PORT = process.env.PORT || 3000;
 
