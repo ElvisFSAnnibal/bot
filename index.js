@@ -14,23 +14,25 @@ app.get('/', (req, res) => {
 // =========================
 // 🔥 TESTE PRINCIPAL (DINÂMICO)
 // =========================
-app.all('/teste', async (req, res) => {
-  console.log('📩 BODY RECEBIDO:', req.body);
-  let browser;
-  let page;
+app.all('/teste', (req, res) => {
+  console.log('=== HEADERS ===');
+  console.log(req.headers);
 
-  try {
-    // =========================
-    // 📦 RECEBE DADOS
-    // =========================
-    const obra = req.body.obra;
+  let raw = '';
 
-    if (!obra) {
-      return res.status(400).json({
-        erro: "Envie a obra no JSON. Ex: { \"obra\": \"ET 12345\" }"
-      });
-    }
+  req.on('data', chunk => {
+    raw += chunk;
+  });
 
+  req.on('end', () => {
+    console.log('=== RAW BODY ===');
+    console.log(raw);
+
+    res.json({
+      recebido: raw
+    });
+  });
+});
     console.log('📦 Obra recebida:', obra);
 
     // =========================
