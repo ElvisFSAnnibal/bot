@@ -4,82 +4,105 @@ const puppeteer = require('puppeteer');
 const app = express();
 app.use(express.json());
 
-// rota teste
+// =========================
+// 🚀 HEALTH CHECK
+// =========================
 app.get('/', (req, res) => {
   res.send('OK 🚀');
 });
 
-// 🔥 rota de debug
-app.get('/teste', async (req, res) => {
+// =========================
+// 🔥 TESTE PRINCIPAL
+// =========================
+app.all('/teste', async (req, res) => {
   let browser;
   let page;
 
   try {
+    console.log('🚀 Iniciando Puppeteer...');
+
     browser = await puppeteer.launch({
-      headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--single-process'
+      ]
     });
 
     page = await browser.newPage();
 
+    page.setDefaultTimeout(30000);
+
     // =========================
     // 🔐 LOGIN
     // =========================
-    await page.goto('https://web.diariodeobra.app/#/login');
+    console.log('🔐 Acessando login...');
 
-    await page.waitForSelector('input[name="email"]', { timeout: 20000 });
+    await page.goto('https://web.diariodeobra.app/#/login', {
+      waitUntil: 'networkidle2'
+    });
 
-    await page.type('input[name="email"]', process.env.EMAIL);
-    await page.type('input[name="password"]', process.env.SENHA);
+    await page.waitForSelector('input[name="email"]');
+
+    await page.type('input[name="email"]', process.env.EMAIL || '');
+    await page.type('input[name="password"]', process.env.SENHA || '');
 
     await page.click('button[type="submit"]');
 
-    await new Promise(r => setTimeout(r, 6000));
+    // espera transição de tela
+    await page.waitForTimeout(5000);
 
-    console.log('Login OK');
+    console.log('✅ Login realizado');
 
     // =========================
-    // 🏢 SELECIONAR EMPRESA (ROBUSTO)
+    // 🏢 TELA DE EMPRESA
     // =========================
+    console.log('🏢 Aguardando lista de empresas...');
+
     await page.waitForFunction(() => {
       return document.body.innerText.includes('Acessar');
-    }, { timeout: 20000 });
+    }, { timeout: 30000 });
 
-    await page.evaluate(() => {
-      const nomeEmpresa = "BMB TECNOLOGIA SOLUÇÕES E SERVIÇOS LTDA";
+    // =========================
+    // 🧠 SELEÇÃO DE EMPRESA
+    // =========================
+    const nomeEmpresa = "BMB TECNOLOGIA SOLUÇÕES E SERVIÇOS LTDA";
 
-      const blocos = Array.from(document.querySelectorAll('*'));
+    console.log('🎯 Tentando selecionar empresa...');
 
-      const empresa = blocos.find(el =>
+    const clicou = await page.evaluate((nomeEmpresa) => {
+      const elements = Array.from(document.querySelectorAll('div, section, article'));
+
+      const card = elements.find(el =>
         el.innerText && el.innerText.includes(nomeEmpresa)
       );
 
-      if (empresa) {
-        let el = empresa;
+      if (!card) return false;
 
-        for (let i = 0; i < 5; i++) {
-          const btn = el.querySelector('button');
-          if (btn) {
-            btn.click();
-            return;
-          }
-          el = el.parentElement;
-          if (!el) break;
-        }
+      card.scrollIntoView({ block: 'center' });
+
+      const btn = card.querySelector('button');
+
+      if (btn) {
+        btn.click();
+        return true;
       }
-    });
 
-    await new Promise(r => setTimeout(r, 7000));
+      return false;
+    }, nomeEmpresa);
 
-    console.log('Empresa selecionada');
+    console.log('👉 Clique empresa:', clicou);
+
+    await page.waitForTimeout(5000);
 
     // =========================
-    // 🔍 DEBUG DA TELA
+    // 🔍 DEBUG DA TELA FINAL
     // =========================
     const textoTela = await page.evaluate(() => document.body.innerText);
 
-    console.log('TELA ATUAL:', textoTela.slice(0, 500));
+    console.log('📄 TELA ATUAL (preview):', textoTela.slice(0, 500));
 
     // =========================
     // 📸 SCREENSHOT
@@ -91,36 +114,39 @@ app.get('/teste', async (req, res) => {
 
     await browser.close();
 
-    res.send({
+    res.json({
       status: 'ok',
-      mensagem: 'Debug após selecionar empresa',
-      tela: textoTela.substring(0, 500),
+      login: true,
+      empresaClicada: clicou,
+      telaPreview: textoTela.substring(0, 500),
       screenshot
     });
 
   } catch (erro) {
-    console.error('ERRO:', erro);
+    console.error('❌ ERRO:', erro);
 
     let screenshot = null;
 
-    if (page) {
-      try {
-        screenshot = await page.screenshot({
-          encoding: 'base64'
-        });
-      } catch (e) {}
-    }
+    try {
+      if (page && !page.isClosed()) {
+        screenshot = await page.screenshot({ encoding: 'base64' });
+      }
+    } catch (e) {}
 
     if (browser) await browser.close();
 
-    res.status(500).send({
+    res.status(500).json({
       erro: erro.message,
       screenshot
     });
   }
 });
 
-// start
-app.listen(process.env.PORT || 3000, () => {
-  console.log('Servidor rodando 🚀');
+// =========================
+// 🚀 START SERVER
+// =========================
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT} 🚀`);
 });
