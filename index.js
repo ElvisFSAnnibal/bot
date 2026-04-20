@@ -1,38 +1,33 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
-const axios = require('axios');
-const fs = require('fs');
 
 const app = express();
 app.use(express.json());
 
-// 🔽 teste no navegador
+// 🔽 teste
 app.get('/', (req, res) => {
   res.send('OK 🚀');
 });
 
-// 🔽 baixar imagem (opcional)
-async function baixarImagem(url, caminho) {
-  const response = await axios({
-    url,
-    method: 'GET',
-    responseType: 'stream'
-  });
-
-  return new Promise((resolve, reject) => {
-    const writer = fs.createWriteStream(caminho);
-    response.data.pipe(writer);
-    writer.on('finish', resolve);
-    writer.on('error', reject);
-  });
-}
-
 // 🔥 endpoint principal
 app.post('/preencher', async (req, res) => {
   try {
-    const { atividade, qtd, obs, imagem } = req.body;
+    const { obra } = req.body;
 
     console.log('Recebido:', req.body);
+
+    // =========================
+    // 🧠 TRATAR NOME DA OBRA
+    // =========================
+    let nomeObra = obra || "";
+
+    if (!nomeObra.toUpperCase().startsWith("ET")) {
+      nomeObra = "ET " + nomeObra;
+    }
+
+    nomeObra = nomeObra.trim();
+
+    console.log("Buscando obra:", nomeObra);
 
     const browser = await puppeteer.launch({
       headless: true,
@@ -83,91 +78,39 @@ app.post('/preencher', async (req, res) => {
     console.log('Empresa selecionada');
 
     // =========================
-    // 📍 IR PARA RELATÓRIO
+    // 🔍 BUSCAR OBRA
     // =========================
-    // ⚠️ COLOQUE SUA URL REAL AQUI
-    await page.goto('COLE_AQUI_URL_DO_RELATORIO', {
-      waitUntil: 'networkidle2'
-    });
+    await page.waitForSelector('input[placeholder="Pesquisa"]', { timeout: 15000 });
+
+    await page.click('input[placeholder="Pesquisa"]', { clickCount: 3 });
+
+    await page.type('input[placeholder="Pesquisa"]', nomeObra);
+
+    await new Promise(r => setTimeout(r, 3000));
+
+    // clicar na obra
+    await page.evaluate((nomeObra) => {
+      const elementos = Array.from(document.querySelectorAll('*'));
+
+      const obra = elementos.find(el =>
+        el.innerText && el.innerText.toUpperCase().includes(nomeObra.toUpperCase())
+      );
+
+      if (obra) obra.click();
+    }, nomeObra);
 
     await new Promise(r => setTimeout(r, 5000));
 
+    console.log('Obra selecionada');
+
     // =========================
-    // 🔍 BUSCAR ATIVIDADE
+    // 🧪 DEBUG
     // =========================
-    const linhas = await page.$$('tr');
-
-    for (const linha of linhas) {
-      const texto = await linha.evaluate(el => el.innerText);
-
-      if (texto && texto.includes(atividade)) {
-        console.log('Atividade encontrada:', atividade);
-
-        const botao = await linha.$('button');
-
-        if (botao) {
-          await botao.click();
-          await new Promise(r => setTimeout(r, 3000));
-
-          // =========================
-          // ✏️ PREENCHER CAMPOS
-          // =========================
-          try {
-            await page.waitForSelector('input[name="quantidade"]', { timeout: 5000 });
-            await page.click('input[name="quantidade"]', { clickCount: 3 });
-            await page.type('input[name="quantidade"]', String(qtd));
-          } catch (e) {
-            console.log('Campo quantidade não encontrado');
-          }
-
-          if (obs) {
-            try {
-              await page.click('textarea[name="observacao"]');
-              await page.type('textarea[name="observacao"]', obs);
-            } catch (e) {
-              console.log('Campo observação não encontrado');
-            }
-          }
-
-          // =========================
-          // 📸 IMAGEM
-          // =========================
-          if (imagem) {
-            try {
-              const caminho = '/tmp/imagem.jpg';
-              await baixarImagem(imagem, caminho);
-
-              const inputFile = await page.$('input[type="file"]');
-              if (inputFile) {
-                await inputFile.uploadFile(caminho);
-                await new Promise(r => setTimeout(r, 2000));
-              }
-            } catch (e) {
-              console.log('Erro imagem:', e.message);
-            }
-          }
-
-          // =========================
-          // 💾 SALVAR
-          // =========================
-          await page.evaluate(() => {
-            const botoes = Array.from(document.querySelectorAll('button'));
-            const salvar = botoes.find(b => b.innerText.includes('Salvar'));
-            if (salvar) salvar.click();
-          });
-
-          await new Promise(r => setTimeout(r, 3000));
-
-          break;
-        }
-      }
-    }
-
     await page.screenshot({ path: '/tmp/debug.png' });
 
     await browser.close();
 
-    res.send({ status: 'ok' });
+    res.send({ status: 'ok', obra: nomeObra });
 
   } catch (erro) {
     console.error('ERRO:', erro);
