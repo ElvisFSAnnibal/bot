@@ -149,7 +149,7 @@ async def preencher_rdo(dados: dict):
                     status = str(dados.get(f'{prefixo}STATUS_TLI{posicao}', '') or '')
                     tipo = str(dados.get(f'{prefixo}TIPO_TLI{posicao}', '') or '')
                     tli_novo = str(dados.get(f'{prefixo}TLI{posicao}', '') or '')
-                    n_serie = str(dados.get(f'{prefixo}N_TLI {posicao}_ANTIGO', '') or '')
+                    n_serie = str(dados.get(f'{prefixo}N_TLI{posicao}_ANTIGO', '') or '')
                     obs_tli = str(dados.get(f'{prefixo}OBSERVACAO_TLI{posicao}', '') or '')
                     foto_antigo = dados.get(f'{prefixo}FOTO_TLI{posicao}_ANTIGO', '')
                     foto_novo = dados.get(f'{prefixo}FOTO_TLI{posicao}_NOVO', '')
