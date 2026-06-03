@@ -1,10 +1,21 @@
 from fastapi import FastAPI, Request
 import uvicorn
 import asyncio
+import json
+from datetime import datetime
 from playwright_rdo import preencher_rdo
 
 app = FastAPI()
 fila = asyncio.Queue()
+
+LOG_FILE = "/home/ubuntu/rdo-bot/bot.log"
+
+def log(msg: str):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    linha = f"[{timestamp}] {msg}"
+    print(linha)
+    with open(LOG_FILE, "a") as f:
+        f.write(linha + "\n")
 
 async def processar_fila():
     while True:
@@ -12,7 +23,7 @@ async def processar_fila():
         try:
             await preencher_rdo(dados)
         except Exception as e:
-            print(f"Erro na fila: {e}")
+            log(f"Erro na fila: {e}")
         finally:
             fila.task_done()
 
@@ -28,7 +39,9 @@ def health():
 async def webhook(request: Request):
     payload = await request.json()
     dados = payload.get("Data", payload)
-    print(f"Webhook recebido - ET: {dados.get('ET')}")
+    et = dados.get('ET', 'desconhecida')
+    log(f"Webhook recebido - ET: {et}")
+    log(f"Payload: {json.dumps(dados, ensure_ascii=False)}")
     await fila.put(dados)
     return {"status": "ok", "mensagem": "Na fila para processar"}
 
